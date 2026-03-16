@@ -149,6 +149,99 @@
 - **安全与风控**
   - 鉴权（token / JWT）、权限控制。
   - 防刷、防滥用策略（限流、黑名单等）。
+ 
+---
 
-你可以先按上面的“推荐学习路径”从 1～3 阶段开始，如果你希望，我可以根据你当前的水平，帮你制定一个更细的“每日学习计划”，或者陪你一起按这个大纲逐个模块阅读和讲解代码。
+## 7. 1～2 周系统学习计划（面向 3 年 Go 后端）
+
+> 说明：假设你工作日每天 2～3 小时投入，如果时间更紧/更宽裕，可以按天往后顺延或合并。
+
+### 第 1 周：跑通全局 & 核心链路
+
+- **第 1 天：项目启动与配置体系**
+  - 阅读：`go.mod`、`commons/configures/configure.go`，理解整体依赖和配置结构。
+  - 实操：
+    - 准备本地配置文件（参考 `commons/configures` 以及 `docs/jim.sql` 中的数据库信息）。
+    - 启动至少一个对外服务：`apigateway` + `connectmanager`（可通过 `main.go` / `cmd` 或各服务 `starter.go`）。
+    - 用 curl/Postman 访问 API 网关根路径 `/`，确认返回 `"ok-ok"` 或类似健康检查结果。
+
+- **第 2 天：API Gateway 结构与路由**
+  - 阅读：
+    - `services/apigateway/starter.go`：关注 gin 初始化、全局中间件。
+    - `services/apigateway/routers/router.go`：整体路由结构。
+    - 挑选 2～3 个典型接口阅读 `services/apigateway/apis/*.go`（如消息、历史消息相关）。
+  - 输出：
+    - 画一个简单“API 层结构图”：标出路由 -> handler -> 内部 service/actor 的调用关系。
+
+- **第 3 天：ConnectManager 与 WebSocket 协议**
+  - 阅读：
+    - `services/connectmanager/starter.go`
+    - `services/connectmanager/server/imwebsocketmsghandler.go`
+    - `services/connectmanager/server/codec/*.go`（重点看消息结构、Cmd 枚举）。
+  - 实操：
+    - 用一个简单 WebSocket 客户端（可以是浏览器插件 / 小脚本）连接本地 `connectmanager`。
+    - 手动发送 `Connect` / `Ping` / 简单 `Publish` 命令，观察服务端日志和响应。
+
+- **第 4 天：消息服务 Message Service（发送路径）**
+  - 阅读：
+    - `services/message/services/msgservice.go`
+    - 核心 `actors/` 中与发送相关的 actor（如 `addmsgactor`、`msgackactor`，具体以目录为准）。
+    - `services/message/storages/dbs/*.go`，理解消息表/收件箱/发件箱结构。
+  - 输出：
+    - 选一个“发送消息”的入口（HTTP 或 WebSocket），从 handler/MsgHandler 一路追到 DB DAO，画出完整调用链和时序图。
+
+- **第 5 天：会话 & 历史消息**
+  - 阅读：
+    - `services/conversation/services/conversationservice.go`、`mentionmsgservice.go`
+    - `services/conversation/storages/dbs/*.go`
+    - `services/historymsg/services/*.go`、`storages/models/hismsg.go`、`storages/mongodbs/*.go`
+  - 思考：
+    - 一条消息写入后，会话未读数是如何更新的？
+    - 历史消息如何分表/分集合存储？查询接口支持哪些维度（按会话、时间等）。
+  - 输出：
+    - 画出“发送消息后，会话与历史如何联动更新”的流程图。
+
+### 第 2 周：高级模块 + 性能 & 演练
+
+- **第 6 天：群聊与用户管理**
+  - 阅读：
+    - `services/group/services/*.go`、`actors/*.go`，关注建群、加群、退群、踢人等流程。
+    - `services/group/dbs/*.go` 与相关 models，了解群/成员表结构。
+    - `services/usermanager/starter.go`、`actors/*.go`，理解注册、资料变更、免打扰等逻辑。
+  - 输出：
+    - 选一个“加群/退群”流程，写出从 API/WS 入口到 DB 的完整调用链说明（文字+简单时序图）。
+
+- **第 7 天：推送与敏感词**
+  - 阅读：
+    - `services/pushmanager/services/*.go`、`storages/dbs/*.go`，理解推送配置、token 存储、推送通道抽象。
+    - `services/sensitivemanager/sensitive/*.go` 与 `sensitivecall/*.go`，看敏感词过滤的核心实现。
+  - 思考：
+    - 当前项目如何区分在线/离线推送？哪些地方触发 PushManager？
+    - 敏感词过滤在发送链路的哪个阶段被调用？失败/命中时如何反馈？
+
+- **第 8 天：音视频房间与 FilePlugin**
+  - 阅读：
+    - `services/rtcroom/services/roomservice.go`、`actors/*.go`，对照依赖（LiveKit/Agora/Zego）理解房间生命周期。
+    - `services/fileplugin/services/*.go`，看文件上传/客户端日志上报的处理路径。
+  - 输出：
+    - 写一段文字总结：IM 主业务和 RTC 房间的边界在哪里？哪些是强耦合，哪些是松耦合（例如只负责信令）？
+
+- **第 9 天：存储层与分片思路**
+  - 阅读：
+    - `docs/jim.sql` + `commons/dbcommons/*.go`，理解全局 DB 管理与迁移。
+    - `commons/mongocommons/mongomanager.go`、`commons/kvdbcommons/*.go`，熟悉 Mongo/LevelDB/HBase 封装。
+  - 思考：
+    - 哪些表/集合是典型热点？现在的 schema 是否已经为分库分表/分片预留了空间？
+    - 结合 `architecture-design.md` 中的“横向扩展”章节，对比当前实现有哪些已经落地，哪些仍是思路级别。
+
+- **第 10 天：综合小练习（推荐至少完成 1 个）**
+  - 任选/组合以下练习（至少 1 个完整做完）：
+    - **练习 A：按你理解的真实代码，重画一版“HTTP 发消息 + WebSocket 下发 + 离线推送”的全链路时序图**（以实际函数/actor 名称为准，而不是文档示例）。
+    - **练习 B：增加一个简单扩展字段（例如消息的“importance”等级）**：
+      - 从 API 请求结构 -> 内部模型 -> DB 字段 -> 返回结构，全链路过一遍（可以只在本地分支实现，不必提交）。
+    - **练习 C：为敏感词模块加一个简单的“白名单/跳过逻辑”**，阅读现有过滤流程后，在合适位置插入判断。
+  - 输出：
+    - 为你完成的练习写一份 300～500 字的小结，说明你在这个项目中看到的“架构优点/潜在坑点”，加深理解。
+
+你可以直接把这个学习计划当作 checklist，按天推进；如果某一天内容过多，可以把一项拆到第二天继续。后续如果你在某个阶段（比如 Message/Conversation）卡住，我也可以针对那几块再帮你写更细的“文件级”阅读顺序。
 
