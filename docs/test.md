@@ -1,2 +1,0 @@
-sddjidsjidsjd
-sdkocko
