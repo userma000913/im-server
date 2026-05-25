@@ -79,7 +79,7 @@ func (msg PrivateHisMsgDao) UpdateMsgBody(appkey, conver_id, subChannel, msgId, 
 	upd := map[string]interface{}{}
 	upd["msg_body"] = msgBody
 	upd["msg_type"] = msgType
-	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_id=?", appkey, conver_id, subChannel, msgId).Update(upd).Error
+	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_id=?", appkey, conver_id, subChannel, msgId).Updates(upd).Error
 }
 
 func (msg PrivateHisMsgDao) QryLatestMsgSeqNo(appkey, converId, subChannel string) int64 {
@@ -140,7 +140,12 @@ func (msg PrivateHisMsgDao) QryHisMsgsExcludeDel(appkey, converId, subChannel, u
 	sql = sql + " and his.is_delete=0 and delhis.msg_id is null"
 	sql = sql + " and his.is_delete=0 and (his.destroy_time=0 or his.destroy_time>?) and delhis.msg_id is null"
 	params = append(params, curr)
-	err := dbcommons.GetDb().Raw(sql, params...).Order(orderStr).Limit(count).Find(&items).Error
+	sql = sql + " ORDER BY " + orderStr
+	if count > 0 {
+		sql = sql + " LIMIT ?"
+		params = append(params, count)
+	}
+	err := dbcommons.GetDb().Raw(sql, params...).Find(&items).Error
 	if !isPositiveOrder {
 		sort.Slice(items, func(i, j int) bool {
 			return items[i].SendTime < items[j].SendTime
@@ -194,7 +199,7 @@ func (msg PrivateHisMsgDao) QryHisMsgs(appkey, converId, subChannel string, star
 	condition = condition + " and is_delete=0 and (destroy_time=0 or destroy_time>?)"
 	params = append(params, curr)
 
-	err := dbcommons.GetDb().Where(condition, params...).Order(orderStr).Limit(count).Find(&items).Error
+	err := dbcommons.GetDb().Where(condition, params...).Order(orderStr).Limit(int(count)).Find(&items).Error
 	if !isPositiveOrder {
 		sort.Slice(items, func(i, j int) bool {
 			return items[i].SendTime < items[j].SendTime
@@ -211,7 +216,7 @@ func (msg PrivateHisMsgDao) MarkReadByMsgIds(appkey, converId, subChannel string
 	upd := map[string]interface{}{}
 	upd["is_read"] = 1
 	upd["read_time"] = time.Now().UnixMilli()
-	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_id in (?)", appkey, converId, subChannel, msgIds).Update(upd).Error
+	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_id in (?)", appkey, converId, subChannel, msgIds).Updates(upd).Error
 }
 
 func (msg PrivateHisMsgDao) UpdateDestroyTimeAfterReadByMsgIds(appkey, converId, subChannel string, msgIds []string) error {
@@ -222,7 +227,7 @@ func (msg PrivateHisMsgDao) MarkReadByScope(appkey, converId, subChannel string,
 	upd := map[string]interface{}{}
 	upd["is_read"] = 1
 	upd["read_time"] = time.Now().UnixMilli()
-	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_index>=? and msg_index<=?", appkey, converId, subChannel, start, end).Update(upd).Error
+	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_index>=? and msg_index<=?", appkey, converId, subChannel, start, end).Updates(upd).Error
 }
 
 func (msg PrivateHisMsgDao) UpdateDestroyTimeAfterReadByScope(appkey, converId, subChannel string, start, end int64) error {
@@ -305,6 +310,32 @@ func (msg PrivateHisMsgDao) UpdateMsgExset(appkey, converId, subChannel, msgId s
 // TODO need batch delete
 func (msg PrivateHisMsgDao) DelSomeoneMsgsBaseTime(appkey, converId, subChannel string, cleanTime int64, senderId string) error {
 	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and sender_id=? and send_time<?", appkey, converId, subChannel, senderId, cleanTime).Update("is_delete", 1).Error
+}
+
+func (msg PrivateHisMsgDao) DelMsgsByIds(ids []int64) error {
+	return dbcommons.GetDb().Model(&msg).Where("id in (?)", ids).Delete(&msg).Error
+}
+
+func (msg PrivateHisMsgDao) DelMsgsBaseTime(appkey string, expiredTime int64) error {
+	maxRetried := 20
+	for range maxRetried {
+		var ids []int64
+		err := dbcommons.GetDb().Model(&PrivateHisMsgDao{}).Where("app_key=? and send_time<?", appkey, expiredTime).
+			Limit(1000).Pluck("id", &ids).Error
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			break
+		}
+		if err = msg.DelMsgsByIds(ids); err != nil {
+			return err
+		}
+		if len(ids) < 1000 {
+			break
+		}
+	}
+	return nil
 }
 
 func dbMsg2PrivateMsg(dbMsg *PrivateHisMsgDao) *models.PrivateHisMsg {

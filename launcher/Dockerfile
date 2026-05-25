@@ -1,4 +1,4 @@
-FROM registry.cn-hangzhou.aliyuncs.com/juggleim/alpine:3.19
+FROM registry.cn-hangzhou.aliyuncs.com/juggleim/alpine:3.23
 
 WORKDIR /opt
 

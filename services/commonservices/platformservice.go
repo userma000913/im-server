@@ -12,6 +12,7 @@ const (
 	Platform_PC      Platform = "PC"
 	Platform_Harmony Platform = "Harmony"
 	Platform_Server  Platform = "Server"
+	Platform_Bot     Platform = "Bot"
 
 	PushChannel_Apple  PushChannel = "Apple"
 	PushChannel_Huawei PushChannel = "Huawei"
@@ -39,6 +40,7 @@ func (conf *HuaweiPushConf) Valid() bool {
 
 type XiaomiPushConf struct {
 	AppSecret string `json:"app_secret"`
+	ChannelId string `json:"channel_id"`
 }
 
 func (conf *XiaomiPushConf) Valid() bool {
@@ -48,6 +50,7 @@ func (conf *XiaomiPushConf) Valid() bool {
 type OppoPushConf struct {
 	AppKey       string `json:"app_key"`
 	MasterSecret string `json:"master_secret"`
+	ChannelId    string `json:"channel_id"`
 }
 
 func (conf *OppoPushConf) Valid() bool {
@@ -65,8 +68,51 @@ func (conf *VivoPushConf) Valid() bool {
 }
 
 type JPushConf struct {
-	AppKey       string `json:"app_key"`
-	MasterSecret string `json:"master_secret"`
+	AppKey       string        `json:"app_key"`
+	MasterSecret string        `json:"master_secret"`
+	Options      *JPushOptions `json:"options,omitempty"`
+}
+
+type JPushOptions struct {
+	Classification    int                     `json:"classification,omitempty"`
+	ThirdPartyChannel *JPushThirdPartyChannel `json:"third_party_channel,omitempty"`
+}
+
+type JPushThirdPartyChannel struct {
+	Huawei *JPushHuaweiChannel `json:"huawei,omitempty"`
+	Xiaomi *JPushXiaomiChannel `json:"xiaomi,omitempty"`
+	Honor  *JPushHonorChannel  `json:"honor,omitempty"`
+	Oppo   *JPushOppoChannel   `json:"oppo,omitempty"`
+	Vivo   *JPushVivoChannel   `json:"vivo,omitempty"`
+	Meizu  *JPushMeizuChannel  `json:"meizu,omitempty"`
+}
+
+type JPushHuaweiChannel struct {
+	Importance string `json:"importance,omitempty"`
+	Category   string `json:"category,omitempty"`
+}
+
+type JPushXiaomiChannel struct {
+	ChannelId string `json:"channel_id,omitempty"`
+}
+
+type JPushHonorChannel struct {
+	Importance string `json:"importance,omitempty"`
+}
+
+type JPushOppoChannel struct {
+	ChannelId   string `json:"channel_id,omitempty"`
+	Category    string `json:"category,omitempty"`
+	NotifyLevel int    `json:"notify_level,omitempty"`
+}
+
+type JPushVivoChannel struct {
+	Distribution string `json:"distribution,omitempty"`
+	Category     string `json:"category,omitempty"`
+}
+
+type JPushMeizuChannel struct {
+	Distribution string `json:"distribution,omitempty"`
 }
 
 func (conf *JPushConf) Valid() bool {

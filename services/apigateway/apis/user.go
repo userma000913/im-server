@@ -43,7 +43,6 @@ func Register(ctx *gin.Context) {
 		tools.ErrorHttpResp(ctx, errs.IMErrorCode(code))
 		return
 	}
-
 	rpcResp, ok := resp.(*pbobjs.UserRegResp)
 	if !ok {
 		tools.ErrorHttpResp(ctx, errs.IMErrorCode_API_INTERNAL_RESP_FAIL)
@@ -335,7 +334,7 @@ func QryBanUsers(ctx *gin.Context) {
 	}
 	offsetStr := ctx.Query("offset")
 
-	code, resp, err := bases.SyncRpcCall(services.ToRpcCtx(ctx, ""), "qry_ban_users", fmt.Sprintf("%s%d", services.GetCtxString(ctx, services.CtxKey_AppKey), tools.RandInt(100000)), &pbobjs.QryBanUsersReq{
+	code, resp, err := bases.SyncRpcCall(services.ToRpcCtx(ctx, ""), "qry_ban_users", fmt.Sprintf("%s%d", services.GetCtxString(ctx, string(bases.CtxKey_AppKey)), tools.RandInt(100000)), &pbobjs.QryBanUsersReq{
 		Limit:   limit,
 		Offset:  offsetStr,
 		UserIds: userIds,

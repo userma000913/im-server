@@ -146,13 +146,14 @@ func RtcInvite(ctx context.Context, req *pbobjs.RtcInviteReq) (errs.IMErrorCode,
 			InviteType: pbobjs.InviteType_RtcInvite,
 			User:       commonservices.GetTargetDisplayUserInfo(ctx, userId),
 			Room: &pbobjs.RtcRoom{
-				RoomType:     container.RoomType,
-				RoomId:       container.RoomId,
-				Owner:        container.Owner,
-				RtcChannel:   container.RtcChannel,
-				RtcMediaType: container.RtcMediaType,
-				Ext:          container.Ext,
-				Members:      members,
+				RoomType:       container.RoomType,
+				RoomId:         container.RoomId,
+				Owner:          container.Owner,
+				RtcChannel:     container.RtcChannel,
+				RtcMediaType:   container.RtcMediaType,
+				Ext:            container.Ext,
+				Members:        members,
+				AttachedConver: req.AttachedConver,
 			},
 			TargetUsers: []*pbobjs.UserInfo{
 				commonservices.GetTargetDisplayUserInfo(ctx, targetId),
@@ -248,13 +249,14 @@ func RtcInvite(ctx context.Context, req *pbobjs.RtcInviteReq) (errs.IMErrorCode,
 			bases.UnicastRouteWithNoSender(msg)
 		}
 		rtcRoom := &pbobjs.RtcRoom{
-			RoomType:     container.RoomType,
-			RoomId:       container.RoomId,
-			Owner:        container.Owner,
-			RtcChannel:   container.RtcChannel,
-			RtcMediaType: container.RtcMediaType,
-			Ext:          container.Ext,
-			Members:      []*pbobjs.RtcMember{},
+			RoomType:       container.RoomType,
+			RoomId:         container.RoomId,
+			Owner:          container.Owner,
+			RtcChannel:     container.RtcChannel,
+			RtcMediaType:   container.RtcMediaType,
+			Ext:            container.Ext,
+			Members:        []*pbobjs.RtcMember{},
+			AttachedConver: req.AttachedConver,
 		}
 		container.ForeachMembers(func(member *models.RtcRoomMember) {
 			rtcRoom.Members = append(rtcRoom.Members, &pbobjs.RtcMember{
@@ -273,7 +275,7 @@ func RtcInvite(ctx context.Context, req *pbobjs.RtcInviteReq) (errs.IMErrorCode,
 			})
 		})
 		//notify target conver
-		if req.AttachedConver != nil && req.AttachedConver.TargetId != "" && req.AttachedConver.ChannelType == pbobjs.ChannelType_Group {
+		if req.AttachedConver != nil && req.AttachedConver.TargetId != "" {
 			syncMsg2Conver(ctx, container)
 		}
 	}
@@ -281,7 +283,7 @@ func RtcInvite(ctx context.Context, req *pbobjs.RtcInviteReq) (errs.IMErrorCode,
 }
 
 func syncMsg2Conver(ctx context.Context, container *RtcRoomContainer) {
-	if container.ConverId != nil && *container.ConverId != "" && container.ChannelType == pbobjs.ChannelType_Group {
+	if container.ConverId != nil && *container.ConverId != "" {
 		userId := bases.GetRequesterIdFromCtx(ctx)
 		activedCallMsg := &msgdefines.ActivedCallMsg{
 			RoomType:     int32(container.RoomType),
@@ -323,7 +325,11 @@ func syncMsg2Conver(ctx context.Context, container *RtcRoomContainer) {
 			Flags:      flag,
 			LifeTime:   10 * 60 * 1000,
 		}
-		commonservices.AsyncGroupMsg(ctx, userId, *container.ConverId, upMsg, &bases.ReGenerateSessionOption{})
+		if container.ChannelType == pbobjs.ChannelType_Private {
+			commonservices.AsyncPrivateMsg(ctx, userId, *container.ConverId, upMsg, &bases.ReGenerateSessionOption{})
+		} else if container.ChannelType == pbobjs.ChannelType_Group {
+			commonservices.AsyncGroupMsg(ctx, userId, *container.ConverId, upMsg, &bases.ReGenerateSessionOption{})
+		}
 	}
 }
 
@@ -480,6 +486,17 @@ func RtcHangup(ctx context.Context) errs.IMErrorCode {
 			})
 		})
 		if container.MemberCount() <= 0 || needDestroy {
+			container.ForeachMembers(func(member *models.RtcRoomMember) {
+				SendRoomEvent(ctx, member.MemberId, &pbobjs.RtcRoomEvent{
+					RoomEventType: pbobjs.RtcRoomEventType_RtcDestroy,
+					Room: &pbobjs.RtcRoom{
+						RoomType: container.RoomType,
+						RoomId:   container.RoomId,
+						Owner:    container.Owner,
+					},
+					EventTime: eventTime,
+				})
+			})
 			container.CleanMembers()
 			//destroy room
 			roomStorage := storages.NewRtcRoomStorage()
@@ -489,7 +506,7 @@ func RtcHangup(ctx context.Context) errs.IMErrorCode {
 			rtcroomCache.Remove(getRoomKey(appkey, roomId))
 		}
 		//send msg
-		if container.ConverId != nil && *container.ConverId != "" && container.ChannelType == pbobjs.ChannelType_Group {
+		if container.ConverId != nil && *container.ConverId != "" {
 			syncMsg2Conver(ctx, container)
 		}
 	}

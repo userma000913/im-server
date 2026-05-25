@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 type AttItemType int
@@ -23,12 +25,15 @@ const (
 	BotConnectType_Websocket BotConnectType = 1
 
 	//setting keys of group or group_members
-	AttItemKey_HideGrpMsg        AttItemKey = "hide_grp_msg"
-	AttItemKey_GrpCreator        AttItemKey = "grp_creator"
-	AttItemKey_GrpAnnouncement   AttItemKey = "grp_announcement"
-	AttItemKey_GrpVerifyType     AttItemKey = "grp_verify_type"
-	AttItemKey_GrpAdministrators AttItemKey = "grp_administrators"
-	AttItemKey_GrpDisplayName    AttItemKey = "grp_display_name"
+	AttItemKey_HideGrpMsg          AttItemKey = "hide_grp_msg"
+	AttItemKey_GrpCreator          AttItemKey = "grp_creator"
+	AttItemKey_GrpAnnouncement     AttItemKey = "grp_announcement"
+	AttItemKey_GrpVerifyType       AttItemKey = "grp_verify_type"
+	AttItemKey_GrpAdministrators   AttItemKey = "grp_administrators"
+	AttItemKey_GrpDisplayName      AttItemKey = "grp_display_name"
+	AttItemKey_GrpMsgSecondLimiter AttItemKey = "grp_msg_second_limiter"
+	AttItemKey_GrpMsgMinuteLimiter AttItemKey = "grp_msg_minute_limiter"
+	AttItemKey_GrpMsgHourLimiter   AttItemKey = "grp_msg_hour_limiter"
 
 	//setting keys of users
 	AttItemKey_Language      AttItemKey = "language"
@@ -37,15 +42,26 @@ const (
 	AttItemKey_GrpGlobalMute AttItemKey = "grp_global_mute"
 
 	//setting keys of bots
-	AttItemKey_Bot_Type    AttItemKey = "bot_type"
-	AttItemKey_Bot_WebHook AttItemKey = "bot_webhook"
-	AttItemKey_Bot_ApiKey  AttItemKey = "bot_api_key"
-	AttItemKey_Bot_BotConf AttItemKey = "bot_conf"
+	AttItemKey_Bot_Type     AttItemKey = "bot_type"
+	AttItemKey_Bot_BotConf  AttItemKey = "bot_conf"
+	AttItemKey_Bot_Settings AttItemKey = "bot_settings"
 )
 
 type GroupSettings struct {
 	HideGrpMsg          bool `default:"false"`
 	HasField_HideGrpMsg bool
+
+	GrpMsgSecondLimiter int `default:"0"`
+	GrpMsgMinuteLimiter int `default:"0"`
+	GrpMsgHourLimiter   int `default:"0"`
+
+	MemberLimiterMap map[string]*GrpMemberLimiter
+}
+
+type GrpMemberLimiter struct {
+	GrpMsgSecondLimiter *rate.Limiter
+	GrpMsgMinuteLimiter *rate.Limiter
+	GrpMsgHourLimiter   *rate.Limiter
 }
 
 type GrpMemberSettings struct {
@@ -59,6 +75,17 @@ type UserSettings struct {
 	UndisturbObj *UserUndisturb
 }
 
+type BotConf struct {
+	BotId    string `json:"bot_id,omitempty"`
+	Url      string `json:"url,omitempty"`
+	ApiKey   string `json:"api_key,omitempty"`
+	IsStream bool   `json:"is_stream"`
+}
+
+type BotSettings struct {
+	OnlyMentioned bool `json:"only_mentioned"`
+}
+
 var GrpMemberSettingKeys map[AttItemKey]bool
 var GroupSettingKeys map[AttItemKey]bool
 var UserSettingKeys map[AttItemKey]bool
@@ -66,6 +93,9 @@ var UserSettingKeys map[AttItemKey]bool
 func init() {
 	GroupSettingKeys = make(map[AttItemKey]bool)
 	GroupSettingKeys[AttItemKey_HideGrpMsg] = true
+	GroupSettingKeys[AttItemKey_GrpMsgSecondLimiter] = true
+	GroupSettingKeys[AttItemKey_GrpMsgMinuteLimiter] = true
+	GroupSettingKeys[AttItemKey_GrpMsgHourLimiter] = true
 
 	GrpMemberSettingKeys = make(map[AttItemKey]bool)
 	GrpMemberSettingKeys[AttItemKey_HideGrpMsg] = true

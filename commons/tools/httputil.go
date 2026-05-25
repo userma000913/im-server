@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
 	"net/http"
@@ -8,31 +9,42 @@ import (
 	"time"
 )
 
+var defaultHTTPTransport = &http.Transport{
+	TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+	MaxIdleConns:        512,
+	MaxIdleConnsPerHost: 256,
+	MaxConnsPerHost:     1024,
+	IdleConnTimeout:     90 * time.Second,
+}
+
+var defaultHTTPClient = &http.Client{
+	Transport: defaultHTTPTransport,
+}
+
 func HttpDo(method, url string, header map[string]string, body string) (string, int, error) {
 	bs, httpCode, err := HttpDoBytes(method, url, header, body)
 	return string(bs), httpCode, err
 }
 
 func HttpDoBytes(method, url string, header map[string]string, body string) ([]byte, int, error) {
-	return HttpDoBytesWithTimeout(method, url, header, body, 5*time.Second)
+	return HttpDoBytesWithTimeout(method, url, header, body, 3*time.Second)
 }
 
 func HttpDoBytesWithTimeout(method, url string, header map[string]string, body string, timeout time.Duration) ([]byte, int, error) {
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-		Timeout: timeout,
-	}
 	request, err := http.NewRequest(method, url, strings.NewReader(body))
 	if err != nil {
 		return []byte{}, 0, err
+	}
+	if timeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		request = request.WithContext(ctx)
 	}
 	for k, v := range header {
 		request.Header.Add(k, v)
 	}
 
-	resp, err := client.Do(request)
+	resp, err := defaultHTTPClient.Do(request)
 	defer func() {
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()

@@ -45,7 +45,10 @@ func (rel GroupPortionRelDao) BatchUpsert(items []models.GroupPortionRel) error 
 }
 
 func (rel GroupPortionRelDao) Delete(item models.GroupPortionRel) error {
-	return dbcommons.GetDb().Where("app_key=? and conver_id=? and channel_type=? and sub_channel=? and user_id=? and msg_id=?", item.AppKey, item.ConverId, item.ChannelType, item.SubChannel, item.UserId, item.MsgId).Error
+	return dbcommons.GetDb().
+		Where("app_key=? and conver_id=? and channel_type=? and sub_channel=? and user_id=? and msg_id=?",
+			item.AppKey, item.ConverId, item.ChannelType, item.SubChannel, item.UserId, item.MsgId).
+		Delete(&GroupPortionRelDao{}).Error
 }
 
 func (rel GroupPortionRelDao) QryPortionMsgs(appkey, userId, converId, subChannel string, startTime int64, count int32, isPositive bool, cleanTime int64) ([]*models.GroupHisMsg, error) {
@@ -76,7 +79,12 @@ func (rel GroupPortionRelDao) QryPortionMsgs(appkey, userId, converId, subChanne
 			params = append(params, cleanTime)
 		}
 	}
-	err := dbcommons.GetDb().Raw(sql, params...).Order(orderStr).Limit(count).Find(&items).Error
+	sql = sql + " ORDER BY " + orderStr
+	if count > 0 {
+		sql = sql + " LIMIT ?"
+		params = append(params, count)
+	}
+	err := dbcommons.GetDb().Raw(sql, params...).Find(&items).Error
 	if !isPositive {
 		sort.Slice(items, func(i, j int) bool {
 			return items[i].SendTime < items[j].SendTime
@@ -87,4 +95,30 @@ func (rel GroupPortionRelDao) QryPortionMsgs(appkey, userId, converId, subChanne
 		retItems = append(retItems, dbMsg2GrpMsg(dbMsg))
 	}
 	return retItems, err
+}
+
+func (rel GroupPortionRelDao) DelRelsByIds(ids []int64) error {
+	return dbcommons.GetDb().Model(&GroupPortionRelDao{}).Where("id in (?)", ids).Delete(&GroupPortionRelDao{}).Error
+}
+
+func (rel GroupPortionRelDao) DelRelsBaseTime(appkey string, expiredTime int64) error {
+	maxRetried := 20
+	for range maxRetried {
+		var ids []int64
+		err := dbcommons.GetDb().Model(&GroupPortionRelDao{}).Where("app_key=? and msg_time<?", appkey, expiredTime).
+			Limit(1000).Pluck("id", &ids).Error
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			break
+		}
+		if err = rel.DelRelsByIds(ids); err != nil {
+			return err
+		}
+		if len(ids) < 1000 {
+			break
+		}
+	}
+	return nil
 }

@@ -1,6 +1,7 @@
 package dbs
 
 import (
+	"bytes"
 	"fmt"
 	"im-server/commons/dbcommons"
 	"im-server/commons/pbdefines/pbobjs"
@@ -14,6 +15,7 @@ type UserConverTagDao struct {
 	UserId      string    `gorm:"user_id"`
 	Tag         string    `gorm:"tag"`
 	TagName     string    `gorm:"tag_name"`
+	TagOrder    int       `gorm:"tag_order"`
 	CreatedTime time.Time `gorm:"created_time"`
 	AppKey      string    `gorm:"app_key"`
 }
@@ -23,13 +25,34 @@ func (utag *UserConverTagDao) TableName() string {
 }
 
 func (utag *UserConverTagDao) Upsert(item models.UserConverTag) error {
-	if item.TagName != "" {
-		sql := fmt.Sprintf("INSERT INTO %s (app_key,user_id,tag,tag_name) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE tag_name=?", utag.TableName())
-		return dbcommons.GetDb().Exec(sql, item.AppKey, item.UserId, item.Tag, item.TagName, item.TagName).Error
-	} else {
-		sql := fmt.Sprintf("INSERT IGNORE INTO %s (app_key,user_id,tag) VALUES (?,?,?)", utag.TableName())
-		return dbcommons.GetDb().Exec(sql, item.AppKey, item.UserId, item.Tag).Error
+	sql := fmt.Sprintf(
+		"INSERT INTO %s (app_key,user_id,tag,tag_name,tag_order) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE tag_name=IF(VALUES(tag_name)='',tag_name,VALUES(tag_name)),tag_order=VALUES(tag_order)",
+		utag.TableName(),
+	)
+	return dbcommons.GetDb().Exec(sql, item.AppKey, item.UserId, item.Tag, item.TagName, item.TagOrder).Error
+}
+
+func (utag *UserConverTagDao) BatchUpsert(items []models.UserConverTag) error {
+	if len(items) == 0 {
+		return nil
 	}
+	var buffer bytes.Buffer
+	sql := fmt.Sprintf(
+		"INSERT INTO %s (app_key,user_id,tag,tag_name,tag_order) VALUES ",
+		utag.TableName(),
+	)
+	buffer.WriteString(sql)
+	params := make([]interface{}, 0, len(items)*5)
+	for i, item := range items {
+		if i == len(items)-1 {
+			buffer.WriteString("(?,?,?,?,?) ")
+		} else {
+			buffer.WriteString("(?,?,?,?,?),")
+		}
+		params = append(params, item.AppKey, item.UserId, item.Tag, item.TagName, item.TagOrder)
+	}
+	buffer.WriteString("ON DUPLICATE KEY UPDATE tag_name=IF(VALUES(tag_name)='',tag_name,VALUES(tag_name)),tag_order=VALUES(tag_order)")
+	return dbcommons.GetDb().Exec(buffer.String(), params...).Error
 }
 
 func (utag *UserConverTagDao) Delete(appkey, userId, tag string) error {
@@ -39,13 +62,14 @@ func (utag *UserConverTagDao) Delete(appkey, userId, tag string) error {
 func (utag *UserConverTagDao) QryTags(appkey, userId string) ([]*models.UserConverTag, error) {
 	var items []*UserConverTagDao
 	ret := []*models.UserConverTag{}
-	err := dbcommons.GetDb().Where("app_key=? and user_id=?", appkey, userId).Find(&items).Error
+	err := dbcommons.GetDb().Where("app_key=? and user_id=?", appkey, userId).Order("tag_order asc").Find(&items).Error
 	if err == nil {
 		for _, item := range items {
 			ret = append(ret, &models.UserConverTag{
 				UserId:      item.UserId,
 				Tag:         item.Tag,
 				TagName:     item.TagName,
+				TagOrder:    item.TagOrder,
 				CreatedTime: item.CreatedTime.UnixMilli(),
 				AppKey:      item.AppKey,
 			})
@@ -64,7 +88,9 @@ func (utag *UserConverTagDao) QryTagsByConver(appkey, userId, targetId string, c
 	sqlBuilder.WriteString(utag.TableName())
 	sqlBuilder.WriteString(".tag,")
 	sqlBuilder.WriteString(utag.TableName())
-	sqlBuilder.WriteString(".tag_name from ")
+	sqlBuilder.WriteString(".tag_name,")
+	sqlBuilder.WriteString(utag.TableName())
+	sqlBuilder.WriteString(".tag_order from ")
 	sqlBuilder.WriteString(utag.TableName())
 	sqlBuilder.WriteString(" right join ")
 	sqlBuilder.WriteString(tagRel.TableName())
@@ -105,10 +131,11 @@ func (utag *UserConverTagDao) QryTagsByConver(appkey, userId, targetId string, c
 	ret := []*models.UserConverTag{}
 	for _, tag := range items {
 		ret = append(ret, &models.UserConverTag{
-			UserId:  userId,
-			AppKey:  appkey,
-			Tag:     tag.Tag,
-			TagName: tag.TagName,
+			UserId:   userId,
+			AppKey:   appkey,
+			Tag:      tag.Tag,
+			TagName:  tag.TagName,
+			TagOrder: tag.TagOrder,
 		})
 	}
 	return ret, nil

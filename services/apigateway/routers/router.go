@@ -23,7 +23,7 @@ func Route(eng *gin.Engine, prefix string) {
 	group.POST("/users/blockusers/unblock", apis.UnBlockUser)
 	group.GET("/users/blockusers/query", apis.QryBlockUsers)
 
-	group.POST("/bots/add", apis.AddBot)
+	group.POST("/bots/register", apis.RegisterBot)
 
 	group.POST("/messages/private/send", apis.SendPrivateMsg)
 	group.POST("/messages/system/send", apis.SendSystemMsg)
@@ -61,6 +61,7 @@ func Route(eng *gin.Engine, prefix string) {
 	group.POST("/groups/groupmute/set", apis.GroupMute)
 	group.POST("/groups/groupmembermute/set", apis.GroupMemberMute)
 	group.POST("/groups/groupmemberallow/set", apis.GroupMemberAllow)
+	group.POST("/groups/members/settings/set", apis.SetGroupMemberSettings)
 
 	group.GET("/sensitivewords/list", apis.QrySensitiveWords)
 	group.POST("/sensitivewords/import", apis.ImportSensitiveWords)
@@ -89,4 +90,8 @@ func Route(eng *gin.Engine, prefix string) {
 	group.POST("/friends/del", apis.DelFriends)
 	group.GET("/friends/query", apis.QryFriends)
 	group.POST("/friends/setdisplayname", apis.SetFriendDisplayName)
+
+	group.POST("/binddevices/add", apis.AddBindDevice)
+	group.POST("/binddevices/del", apis.DelBindDevice)
+	group.GET("/binddevices/query", apis.QryBindDevices)
 }

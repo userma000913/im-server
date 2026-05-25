@@ -9,8 +9,8 @@ import (
 	"im-server/services/logmanager"
 	"im-server/services/rtcroom"
 	sensitivemanager "im-server/services/sensitivemanager"
+	"im-server/services/statussubscriptions"
 	"im-server/services/subscriptions"
-	"im-server/services/userstatussub"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -25,6 +25,7 @@ import (
 	"im-server/commons/kvdbcommons"
 	"im-server/commons/logs"
 	"im-server/commons/mongocommons"
+	"im-server/commons/tasks"
 	"im-server/commons/tools"
 	"im-server/services/admingateway"
 	"im-server/services/apigateway"
@@ -125,7 +126,7 @@ func main() {
 	imstarters.Loaded(&broadcast.BroadcastManager{})
 	imstarters.Loaded(&logmanager.LogManager{})
 	imstarters.Loaded(&sensitivemanager.SensitiveManager{})
-	imstarters.Loaded(&userstatussub.UserStatusSubManager{})
+	imstarters.Loaded(&statussubscriptions.StatusSubscriptionsManager{})
 	imstarters.Loaded(&botmsg.BotMsgManager{})
 	imstarters.Loaded(&rtcroom.RtcRoomManager{})
 
@@ -139,6 +140,7 @@ func main() {
 		<-sigChan
 		imstarters.Shutdown(true)
 		signal.Stop(sigChan)
+		tasks.StopTaskExecute()
 		close(closeChan)
 	}()
 

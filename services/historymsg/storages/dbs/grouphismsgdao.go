@@ -135,7 +135,12 @@ func (msg GroupHisMsgDao) QryHisMsgsExcludeDel(appkey, converId, subChannel, use
 	// sql = sql + " and his.is_delete=0 and his.is_portion=0 and (his.destroy_time=0 or his.destroy_time>?) and delhis.msg_id is null"
 	sql = sql + " and his.is_delete=0 and (his.is_portion=0 or rel.msg_id is not null) and (his.destroy_time=0 or his.destroy_time>?) and delhis.msg_id is null"
 	params = append(params, curr)
-	err := dbcommons.GetDb().Raw(sql, params...).Order(orderStr).Limit(count).Find(&items).Error
+	sql = sql + " ORDER BY " + orderStr
+	if count > 0 {
+		sql = sql + " LIMIT ?"
+		params = append(params, count)
+	}
+	err := dbcommons.GetDb().Raw(sql, params...).Find(&items).Error
 	if !isPositiveOrder {
 		sort.Slice(items, func(i, j int) bool {
 			return items[i].SendTime < items[j].SendTime
@@ -190,8 +195,12 @@ func (msg GroupHisMsgDao) QryHisMsgs(appkey, converId, subChannel, userId string
 	}
 	sql = sql + " and his.is_delete=0 and (his.is_portion=0 or rel.msg_id is not null) and (his.destroy_time=0 or his.destroy_time>?)"
 	params = append(params, curr)
-
-	err := dbcommons.GetDb().Raw(sql, params...).Order(orderStr).Limit(count).Table(msg.TableName()).Find(&items).Error
+	sql = sql + " ORDER BY " + orderStr
+	if count > 0 {
+		sql = sql + " LIMIT ?"
+		params = append(params, count)
+	}
+	err := dbcommons.GetDb().Raw(sql, params...).Table(msg.TableName()).Find(&items).Error
 	if !isPositive {
 		sort.Slice(items, func(i, j int) bool {
 			return items[i].SendTime < items[j].SendTime
@@ -208,7 +217,7 @@ func (msg GroupHisMsgDao) UpdateMsgBody(appkey, conver_id, subChannel, msgId, ms
 	upd := map[string]interface{}{}
 	upd["msg_body"] = msgBody
 	upd["msg_type"] = msgType
-	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_id=?", appkey, conver_id, subChannel, msgId).Update(upd).Error
+	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and msg_id=?", appkey, conver_id, subChannel, msgId).Updates(upd).Error
 }
 
 func (msg GroupHisMsgDao) UpdateReadCount(appkey, converId, subChannel, msgId string, readCount int) error {
@@ -291,6 +300,32 @@ func (msg GroupHisMsgDao) UpdateDestroyTimeAfterReadByMsgIds(appkey, converId, s
 // TODO need batch delete
 func (msg GroupHisMsgDao) DelSomeoneMsgsBaseTime(appkey, converId, subChannel string, cleanTime int64, senderId string) error {
 	return dbcommons.GetDb().Model(&msg).Where("app_key=? and conver_id=? and sub_channel=? and sender_id=? and send_time<?", appkey, converId, subChannel, senderId, cleanTime).Update("is_delete", 1).Error
+}
+
+func (msg GroupHisMsgDao) DelMsgsByIds(ids []int64) error {
+	return dbcommons.GetDb().Model(&msg).Where("id in (?)", ids).Delete(&msg).Error
+}
+
+func (msg GroupHisMsgDao) DelMsgsBaseTime(appkey string, expiredTime int64) error {
+	maxRetried := 20
+	for range maxRetried {
+		var ids []int64
+		err := dbcommons.GetDb().Model(&GroupHisMsgDao{}).Where("app_key=? and send_time<?", appkey, expiredTime).
+			Limit(1000).Pluck("id", &ids).Error
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			break
+		}
+		if err = msg.DelMsgsByIds(ids); err != nil {
+			return err
+		}
+		if len(ids) < 1000 {
+			break
+		}
+	}
+	return nil
 }
 
 func dbMsg2GrpMsg(dbMsg *GroupHisMsgDao) *models.GroupHisMsg {

@@ -65,17 +65,20 @@ func SyncMessages(ctx context.Context, syncMsg *pbobjs.SyncMsgReq) (errs.IMError
 	//关闭直发
 	userStatus := GetUserStatus(appKey, userId)
 	userStatus.CheckNtfWithSwitch()
-	platform := bases.GetPlatformFromCtx(ctx)
-	if string(commonservices.Platform_Android) == platform || string(commonservices.Platform_IOS) == platform {
-		//clear badge
-		userStatus.SetBadge(0)
-	}
+	// platform := bases.GetPlatformFromCtx(ctx)
+	// if string(commonservices.Platform_Android) == platform || string(commonservices.Platform_IOS) == platform {
+	// 	//clear badge
+	// 	userStatus.SetBadge(0)
+	// }
 
 	ret := &pbobjs.DownMsgSet{
 		Msgs: []*pbobjs.DownMsg{},
 	}
 	//拉取收件箱
 	if userStatus.LatestMsgTime == nil || *userStatus.LatestMsgTime > syncTime || *userStatus.LatestMsgTime > cmdSyncTime {
+		queueMsgs := SyncOfflineQueueMessages(appKey, userId, syncTime, msgSyncBatchCount)
+		ret.Msgs = append(ret.Msgs, queueMsgs...)
+
 		inboxMsgs := SyncInboxMessages(appKey, userId, syncTime, cmdSyncTime, msgSyncBatchCount)
 		for _, msg := range inboxMsgs {
 			downMsg := &pbobjs.DownMsg{}
@@ -170,4 +173,9 @@ func SyncSendboxMessages(appkey, userid string, startTime, cmdStartTime int64, c
 		retMsgs = append(retMsgs, msgs...)
 	}
 	return retMsgs
+}
+
+func SyncOfflineQueueMessages(appkey, userId string, startTime int64, count int) []*pbobjs.DownMsg {
+	container := GetMessageQueueContainer(appkey, userId)
+	return container.GetMsgsBaseTime(startTime, count)
 }

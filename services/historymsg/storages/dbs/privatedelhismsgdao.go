@@ -72,7 +72,7 @@ func (msg PrivateDelHisMsgDao) QryDelHisMsgs(appkey, userId, targetId, subChanne
 		condition = condition + " and msg_time<?"
 	}
 	params = append(params, startTime)
-	err := dbcommons.GetDb().Where(condition, params...).Order(orderStr).Limit(count).Find(&items).Error
+	err := dbcommons.GetDb().Where(condition, params...).Order(orderStr).Limit(int(count)).Find(&items).Error
 	if err != nil {
 		return nil, err
 	}
@@ -119,4 +119,30 @@ func (msg PrivateDelHisMsgDao) QryDelHisMsgsByMsgIds(appkey, userId, targetId, s
 		})
 	}
 	return retItems, err
+}
+
+func (msg PrivateDelHisMsgDao) DelMsgsByIds(ids []int64) error {
+	return dbcommons.GetDb().Model(&msg).Where("id in (?)", ids).Delete(&msg).Error
+}
+
+func (msg PrivateDelHisMsgDao) DelMsgsBaseTime(appkey string, expiredTime int64) error {
+	maxRetried := 20
+	for range maxRetried {
+		var ids []int64
+		err := dbcommons.GetDb().Model(&PrivateDelHisMsgDao{}).Where("app_key=? and msg_time<?", appkey, expiredTime).
+			Limit(1000).Pluck("id", &ids).Error
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			break
+		}
+		if err = msg.DelMsgsByIds(ids); err != nil {
+			return err
+		}
+		if len(ids) < 1000 {
+			break
+		}
+	}
+	return nil
 }

@@ -266,7 +266,8 @@ CREATE TABLE IF NOT EXISTS `g_delhismsgs` (
   `app_key` varchar(20) DEFAULT NULL COMMENT '应用key',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_msgid` (`app_key`,`user_id`,`target_id`,`sub_channel`,`msg_id`),
-  KEY `idx_target` (`app_key`,`user_id`,`target_id`,`sub_channel`,`msg_time`)
+  KEY `idx_target` (`app_key`,`user_id`,`target_id`,`sub_channel`,`msg_time`),
+  KEY `idx_appkey_time` (`app_key`,`msg_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT = '群聊-历史消息已删记录表';
 
 CREATE TABLE IF NOT EXISTS `g_hismsgs` (
@@ -293,7 +294,8 @@ CREATE TABLE IF NOT EXISTS `g_hismsgs` (
   `life_time_after_read` bigint DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_appkey_converid` (`app_key`,`conver_id`,`sub_channel`,`msg_id`,`send_time`),
-  KEY `idx_conver_time` (`app_key`,`conver_id`,`sub_channel`,`send_time`)
+  KEY `idx_conver_time` (`app_key`,`conver_id`,`sub_channel`,`send_time`),
+  KEY `idx_appkey_time` (`app_key`,`send_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT = '群聊-历史消息表';
 
 CREATE TABLE IF NOT EXISTS `gc_hismsgs` (
@@ -547,7 +549,8 @@ CREATE TABLE IF NOT EXISTS `p_delhismsgs` (
   `app_key` varchar(20) DEFAULT NULL COMMENT '应用key',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_msgid` (`app_key`,`user_id`,`target_id`,`sub_channel`,`msg_id`),
-  KEY `idx_target` (`app_key`,`user_id`,`target_id`,`sub_channel`,`msg_time`)
+  KEY `idx_target` (`app_key`,`user_id`,`target_id`,`sub_channel`,`msg_time`),
+  KEY `idx_appkey_time` (`app_key`,`msg_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT = '单聊-历史消息已删记录表';
 
 CREATE TABLE IF NOT EXISTS `p_hismsgs` (
@@ -573,7 +576,8 @@ CREATE TABLE IF NOT EXISTS `p_hismsgs` (
   `life_time_after_read` bigint DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_app_key_conver_id` (`app_key`,`conver_id`,`sub_channel`,`msg_id`,`send_time`),
-  KEY `idx_conver_time` (`app_key`,`conver_id`,`sub_channel`,`send_time`)
+  KEY `idx_conver_time` (`app_key`,`conver_id`,`sub_channel`,`send_time`),
+  KEY `idx_appkey_time` (`app_key`,`send_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT = '单聊-历史消息';
 
 CREATE TABLE IF NOT EXISTS `pushtokens` (
@@ -651,16 +655,6 @@ CREATE TABLE IF NOT EXISTS `sensitivewords` (
   UNIQUE KEY `uniq_word` (`app_key`,`word`),
   KEY `idx_appkey` (`app_key`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT = '敏感词';
-
-CREATE TABLE IF NOT EXISTS `subrelations` (
-  `id` int NOT NULL AUTO_INCREMENT COMMENT '主键id',
-  `user_id` varchar(32) DEFAULT NULL COMMENT '用户id',
-  `subscriber` varchar(32) DEFAULT NULL COMMENT '订阅者',
-  `created_time` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-  `app_key` varchar(20) DEFAULT NULL COMMENT '应用key',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_sub` (`app_key`,`user_id`,`subscriber`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `usercleantimes` (
   `id` int NOT NULL AUTO_INCREMENT COMMENT '主键id',

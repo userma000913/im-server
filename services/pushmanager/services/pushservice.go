@@ -5,6 +5,7 @@ import (
 	"im-server/commons/bases"
 	"im-server/commons/pbdefines/pbobjs"
 	"im-server/commons/tools"
+	"im-server/services/commonservices"
 	"im-server/services/commonservices/logs"
 	"im-server/services/pushmanager/services/hwpush"
 	"im-server/services/pushmanager/services/jpush"
@@ -64,7 +65,7 @@ func SendPush(ctx context.Context, userId string, req *pbobjs.PushData) {
 				switch pushToken.PushChannel {
 				case pbobjs.PushChannel_Huawei:
 					if androidPushConf.HwPushClient != nil {
-						androidPushConf.HwPushClient.SendMessage(ctx, &hwpush.MessageRequest{
+						_, err := androidPushConf.HwPushClient.SendMessage(ctx, &hwpush.MessageRequest{
 							Message: &hwpush.Message{
 								Notification: &hwpush.Notification{
 									Title: req.Title,
@@ -83,34 +84,55 @@ func SendPush(ctx context.Context, userId string, req *pbobjs.PushData) {
 								Token: []string{pushToken.PushToken},
 							},
 						})
+						if err != nil {
+							logs.WithContext(ctx).Infof("[Huawei_ERROR]user_id:%s\tmsg_id:%s\t%s", userId, req.MsgId, err.Error())
+						} else {
+							logs.WithContext(ctx).Infof("[Huawei_SUCC]user_id:%s\tmsg_id:%s", userId, req.MsgId)
+						}
+					} else {
+						logs.WithContext(ctx).Infof("[Huawei_FAIL]have no init jpush client")
 					}
 				case pbobjs.PushChannel_Xiaomi:
 					if androidPushConf.XiaomiPushClient != nil {
-						androidPushConf.XiaomiPushClient.SendWithContext(ctx, &xiaomipush.SendReq{
+						_, err := androidPushConf.XiaomiPushClient.SendWithContext(ctx, &xiaomipush.SendReq{
 							RestrictedPackageName: pushToken.PackageName,
 							Title:                 req.Title,
 							Description:           req.PushText,
 							RegistrationId:        pushToken.PushToken,
 							Extra: &xiaomipush.Extra{
-								ChannelId: "119572", // TODO
+								ChannelId: androidPushConf.XiaomiPushClient.ChannelId,
 							},
 						})
+						if err != nil {
+							logs.WithContext(ctx).Infof("[Xiaomi_ERROR]user_id:%s\tmsg_id:%s\t%s", userId, req.MsgId, err.Error())
+						} else {
+							logs.WithContext(ctx).Infof("[Xiaomi_SUCC]user_id:%s\tmsg_id:%s", userId, req.MsgId)
+						}
+					} else {
+						logs.WithContext(ctx).Infof("[Xiaomi_FAIL]have no init jpush client")
 					}
 				case pbobjs.PushChannel_Oppo:
 					if androidPushConf.OppoPushClient != nil {
-						androidPushConf.OppoPushClient.SendWithContext(ctx, &oppopush.SendReq{
+						_, err := androidPushConf.OppoPushClient.SendWithContext(ctx, &oppopush.SendReq{
 							Notification: &oppopush.Notification{
-								Title:   req.Title,
-								Content: req.PushText,
-								//ChannelID: channelId,
+								Title:     req.Title,
+								Content:   req.PushText,
+								ChannelID: androidPushConf.OppoPushClient.ChannelId,
 							},
 							TargetType:  2,
 							TargetValue: pushToken.PushToken,
 						})
+						if err != nil {
+							logs.WithContext(ctx).Infof("[Oppo_ERROR]user_id:%s\tmsg_id:%s\t%s", userId, req.MsgId, err.Error())
+						} else {
+							logs.WithContext(ctx).Infof("[Oppo_SUCC]user_id:%s\tmsg_id:%s", userId, req.MsgId)
+						}
+					} else {
+						logs.WithContext(ctx).Infof("[Oppo_FAIL]have no init jpush client")
 					}
 				case pbobjs.PushChannel_Vivo:
 					if androidPushConf.VivoPushClient != nil {
-						androidPushConf.VivoPushClient.SendWithContext(ctx, &vivopush.SendReq{
+						_, err := androidPushConf.VivoPushClient.SendWithContext(ctx, &vivopush.SendReq{
 							RegId:          pushToken.PushToken,
 							NotifyType:     4,
 							Title:          req.Title,
@@ -121,10 +143,17 @@ func SendPush(ctx context.Context, userId string, req *pbobjs.PushData) {
 							Classification: 1,
 							RequestId:      strconv.Itoa(int(time.Now().UnixNano())),
 						})
+						if err != nil {
+							logs.WithContext(ctx).Infof("[Vivo_ERROR]user_id:%s\tmsg_id:%s\t%s", userId, req.MsgId, err.Error())
+						} else {
+							logs.WithContext(ctx).Infof("[Vivo_SUCC]user_id:%s\tmsg_id:%s", userId, req.MsgId)
+						}
+					} else {
+						logs.WithContext(ctx).Infof("[Vivo_FAIL]have no init jpush client")
 					}
 				case pbobjs.PushChannel_JPush:
 					if androidPushConf.JpushClient != nil {
-						_, err := androidPushConf.JpushClient.Push(&jpush.Payload{
+						jPushPayload := &jpush.Payload{
 							Platform: jpush.NewPlatform().All(),
 							Audience: jpush.NewAudience().SetRegistrationId(pushToken.PushToken),
 							Notification: &jpush.Notification{
@@ -138,7 +167,9 @@ func SendPush(ctx context.Context, userId string, req *pbobjs.PushData) {
 									},
 								},
 							},
-						})
+							Options: handleJPushOptions(androidPushConf.JpushClient.Options),
+						}
+						_, err := androidPushConf.JpushClient.Push(jPushPayload)
 						if err != nil {
 							logs.WithContext(ctx).Infof("[JPush_ERROR]user_id:%s\tmsg_id:%s\t%s", userId, req.MsgId, err.Error())
 						} else {
@@ -220,4 +251,24 @@ func iosPushPayload(req *pbobjs.PushData) interface{} {
 		iosPayload.Badge(int(req.Badge))
 	}
 	return iosPayload
+}
+
+func handleJPushOptions(jpushOptions *commonservices.JPushOptions) *jpush.Options {
+	if jpushOptions != nil {
+		options := &jpush.Options{
+			Classification: jpushOptions.Classification,
+		}
+		if jpushOptions.ThirdPartyChannel != nil {
+			options.ThirdPartyChannel = &jpush.ThirdPartyChannel{
+				Huawei: jpushOptions.ThirdPartyChannel.Huawei,
+				Xiaomi: jpushOptions.ThirdPartyChannel.Xiaomi,
+				Honor:  jpushOptions.ThirdPartyChannel.Honor,
+				Oppo:   jpushOptions.ThirdPartyChannel.Oppo,
+				Vivo:   jpushOptions.ThirdPartyChannel.Vivo,
+				Meizu:  jpushOptions.ThirdPartyChannel.Meizu,
+			}
+		}
+		return options
+	}
+	return nil
 }

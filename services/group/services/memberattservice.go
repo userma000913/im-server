@@ -36,6 +36,16 @@ func (member *MemberAtts) SetMemberSetting(itemKey, itemValue string) {
 	member.SettingFields[itemKey] = itemValue
 }
 
+func (member *MemberAtts) SetMemberSettings(settings map[string]string) {
+	key := getGrpMemberKey(member.AppKey, member.GroupId, member.MemberId)
+	lock := memberLocks.GetLocks(key)
+	lock.Lock()
+	defer lock.Unlock()
+	for k, v := range settings {
+		member.SettingFields[k] = v
+	}
+}
+
 func (member *MemberAtts) GetMemberSettings() map[string]string {
 	key := getGrpMemberKey(member.AppKey, member.GroupId, member.MemberId)
 	lock := memberLocks.GetLocks(key)
@@ -92,6 +102,11 @@ func GetGrpMemberAttsFromCache(ctx context.Context, appkey, groupId, memberId st
 			return memberAtts
 		}
 	}
+}
+
+func RemoveGrpMemberAttsFromCache(ctx context.Context, appkey, groupId, memberId string) {
+	key := getGrpMemberKey(appkey, groupId, memberId)
+	memberAttCache.Remove(key)
 }
 
 func getGrpMemberAttsFromDb(ctx context.Context, appkey, groupId, memberId string) *MemberAtts {

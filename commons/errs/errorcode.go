@@ -41,6 +41,12 @@ var (
 	IMErrorCode_USER_EXISTED             IMErrorCode = 10106
 )
 
+// user subscription
+var (
+	IMErrorCode_USERSUB_DEFAULT       IMErrorCode = 10200
+	IMErrorCode_USERSUB_EXCEEDLIMITED IMErrorCode = 10201
+)
+
 // connect errorcode
 var (
 	IMErrorCode_CONNECT_DEFAULT                 IMErrorCode = 11000
@@ -66,6 +72,7 @@ var (
 	IMErrorCode_CONNECT_UNSECURITYDOMAIN        IMErrorCode = 11020
 	IMErrorCode_CONNECT_FUNCTIONDISABLED        IMErrorCode = 11021
 	IMErrorCode_CONNECT_KICKED_BY_SELF          IMErrorCode = 11022
+	IMErrorCode_CONNECT_UNBINDDEVICE            IMErrorCode = 11023
 )
 
 // msg errorcode
@@ -87,8 +94,10 @@ var (
 
 // conversation
 var (
-	IMErrorCode_CONVER_ADDTAGFAIL       IMErrorCode = 12101
-	IMErrorCode_CONVER_TAGADDCONVERFAIL IMErrorCode = 12102
+	IMErrorCode_CONVER_ADDTAGFAIL        IMErrorCode = 12101
+	IMErrorCode_CONVER_TAGADDCONVERFAIL  IMErrorCode = 12102
+	IMErrorCode_CONVER_TAGNOTEXIST       IMErrorCode = 12103
+	IMErrorCode_CONVER_TAGEXCEEDMAXCOUNT IMErrorCode = 12104
 )
 
 // group errorcode
@@ -100,6 +109,7 @@ var (
 	IMErrorCode_GROUP_GROUPMEMBERMUTE        IMErrorCode = 13004
 	IMErrorCode_GROUP_GROUPMEMBERCOUNTEXCEED IMErrorCode = 13005
 	IMErrorCode_GROUP_NOSNAPSHOT             IMErrorCode = 13006
+	IMErrorCode_GROUP_EXCEEDLIMITED          IMErrorCode = 13007
 )
 
 // chatroom errorcode
@@ -171,6 +181,22 @@ var (
 
 	//assistant
 	IMErrorCode_APP_ASSISTANT_PROMPT_DBERROR IMErrorCode = 17300
+)
+
+// public channel
+var (
+	IMErrorCode_PUBLICCHANNEL_DEFAULT    IMErrorCode = 18000
+	IMErrorCode_PUBLICCHANNEL_EXISTED    IMErrorCode = 18001
+	IMErrorCode_PUBLICCHANNEL_NOTEXISTED IMErrorCode = 18002
+	IMErrorCode_PUBLICCHANNEL_DELFAILED  IMErrorCode = 18003
+)
+
+// moments
+var (
+	IMErrorCode_MOMENT_DEFAULT          IMErrorCode = 18100
+	IMErrorCode_MOMENT_REQ_BODY_ILLEGAL IMErrorCode = 18101
+	IMErrorCode_MOMENT_INTERNAL_TIMEOUT IMErrorCode = 18102
+	IMErrorCode_MOMENT_NOT_EXIST        IMErrorCode = 18103
 )
 
 var imCode2ApiErrorMap map[IMErrorCode]*ApiErrorMsg = map[IMErrorCode]*ApiErrorMsg{

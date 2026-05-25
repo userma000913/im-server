@@ -219,6 +219,7 @@ enum ChannelType {
   System = 4;
   GroupCast = 5;
   BroadCast = 6;
+  SubStatus = 8;
 }
 message Notify{
   NotifyType type = 1;
@@ -708,6 +709,8 @@ message ConverTag{
   string tag = 1;
   string tagName = 2;
   ConverTagType tagType = 3;
+  int32 tagOrder = 4;
+  bool isAdd = 5;
 }
 
 message ConverExts {
@@ -1111,4 +1114,43 @@ message TransReq{
 message TransItem{
   string key = 1;
   string content = 2;
+}
+
+message BindDevice{
+  string deviceId = 1;
+  string platform = 2;
+  string deviceCompany = 3;
+  string deviceModel = 4;
+  int64 createdTime = 5;
+}
+
+message BindDevices{
+  repeated BindDevice devices = 1;
+}
+
+message SubUsersReq{
+  repeated string userIds = 1;
+}
+
+enum StatusSubBusType{
+  UserStatus = 0;
+}
+
+message SubRelChangeReq{
+  StatusSubBusType busType = 1;
+  bool isAdd = 2;
+}
+
+message UserStatusList{
+  repeated UserStatusItem items = 1;
+}
+
+message UserStatusItem{
+  string userId = 1;
+  UserOnlineItem onlineStatus = 2;
+}
+
+message UserStatusFriDispatch{
+  DownMsg msg = 1;
+  repeated string excludedUserIds = 2;
 }

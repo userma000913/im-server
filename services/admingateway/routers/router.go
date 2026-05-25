@@ -1,8 +1,8 @@
 package routers
 
 import (
+	"im-server/commons/bases"
 	"im-server/services/admingateway/apis"
-	"im-server/services/admingateway/ctxs"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -80,6 +80,15 @@ func Route(eng *gin.Engine, prefix string) *gin.RouterGroup {
 	group.POST("/apps/sensitivewords/add", apis.AddSensitiveWord)
 	group.POST("/apps/sensitivewords/delete", apis.DeleteSensitiveWord)
 
+	group.POST("/apps/interceptors/add", apis.AddInterceptor)
+	group.POST("/apps/interceptors/delete", apis.DeleteInterceptor)
+	group.POST("/apps/interceptors/update", apis.UpdateInterceptor)
+	group.GET("/apps/interceptors/list", apis.ListInterceptors)
+	group.POST("/apps/interceptors/conditions/add", apis.AddInterceptorConditions)
+	group.POST("/apps/interceptors/conditions/delete", apis.DeleteInterceptorConditions)
+	group.POST("/apps/interceptors/conditions/update", apis.UpdateInterceptorConditions)
+	group.GET("/apps/interceptors/conditions/list", apis.ListInterceptorConditions)
+
 	return group
 }
 
@@ -105,7 +114,7 @@ func CorsHandler() gin.HandlerFunc {
 func InjectCtx() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		appKey := ctx.Request.Header.Get("appkey")
-		ctx.Set(string(ctxs.CtxKey_AppKey), appKey)
+		ctx.Set(string(bases.CtxKey_AppKey), appKey)
 		ctx.Next()
 	}
 }
